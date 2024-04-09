@@ -3,58 +3,189 @@
  * See LICENSE in the project root for license information.
  */
 
-var mailboxItem;
-
-Office.initialize = function (reason) {
-  mailboxItem = Office.context.mailbox.item;
-};
+Office.initialize = function (reason) {};
 
 /**
- * Handles the OnMessageSend event.
+ * Handles the OnMessageRecipientsChanged event.
  /**
- * Initializes all of the code.\
+ * Initializes all of the code.
  * @param {*} event The Office event object
  */
+// function MessageSendVerificationHandler(event) {
+// console.log("MessageSendVerificationHandler method"); //debugging
+// console.log("event: " + JSON.stringify(event)); //debugging
+// //First initialize all variables
+// //Second get banner classification from body
+// //Third check classification for sender
+// //Fourth check classification for 'to' parameter
+// //Fifth any extra for cc and bcc
+// //Sixth output message to user upon failure, EX: "You are not authorized to send this." 
+
+
+// const item = Office.context.mailbox.item;
+// console.log("subject is");
+// const subject = item.subject;
+// console.log("subject is");
+// console.log(subject);
+// // Continue with processing the subject of the current item,
+// // which can be a message or appointment.
+
+
+// }
+
+
+
+
+
+// body = bodyHandler();
+// sender = senderHandler();
+// to = toHandler();
+// //console.log("the body is: " + body + ", the sender is: " + sender + ", and the recipient is: " + to);
+// console.log("the body is: " + body);
+// console.log(", the sender is: " + sender);
+// console.log(", and the recipient is: " + to);
+// }
+
 function MessageSendVerificationHandler(event) {
-  //promise is to encapsulate all the async functions
-  Promise.all([
-    getToRecipientsAsync(),
-    getSenderAsync(),
-    getBodyAsync(),
-    fetchAndParseCSV(),
-    getCCAsync(),
-    getBCCAsync(),
-  ]).then(([toRecipients, sender, body, fetchAndParseCSV, cc, bcc]) => {
-    console.log("To recipients:");
-    toRecipients.forEach((recipient) => console.log(recipient.emailAddress));
-    console.log("Sender:" + sender.displayName + " " + sender.emailAddress);
-    console.log("CC: " + cc.emailAddress);
-    console.log("BCC: " + bcc.emailAddress);
-    console.log("Body:" + body);
-    const banner = getBannerFromBody(body);
+Office.context.mailbox.item.to.getAsync(function (asyncResult) {
+  if (asyncResult.status !== Office.AsyncResultStatus.Succeeded) {
+    console.error("Failed to get To recipients. " + JSON.stringify(asyncResult.error));
+    return;
+  }
+  
+  const toRecipients = asyncResult.value;
+  console.log("checking the classification of recipient: "+ toRecipients);
+  checkRecipientClassification(toRecipients)
+    .then(allowEvent => {
+      if (!allowEvent) {
+        // Prevent sending the email
+        event.completed({ allowEvent: false });
+        Office.context.mailbox.item.notificationMessages.addAsync(
+          "unauthorizedSending",
+          {
+            type: Office.MailboxEnums.ItemNotificationMessageType.ErrorMessage,
+            message: "You are not authorized to send this email to meaganbmueller@gmail.com."
+          }
+        );
+      } else {
+        // Allow sending the email
+        event.completed({ allowEvent: true });
+      }
+    })
+    .catch(error => {
+      console.error("Error occurred while checking recipient classification: " + error);
+    });
+});
 
-    // Check if the banner is null error
-    bannerNullHandler(banner, event);
+}
 
-    //const messageBodyTest = "TOP SECRET//COMINT-GAMMA/TALENT KEYHOLE//ORIGINATOR CONTROLLED";
-    const bannerMarkings = parseBannerMarkings(banner);
-    console.log(bannerMarkings);
 
+
+
+
+/**
+ * Gets the 'body' from email.
+ */
+function bodyHandler() {
+  Office.context.mailbox.item.body.getAsync(function (asyncResult) {
+    if (asyncResult.status !== Office.AsyncResultStatus.Succeeded) {
+      console.error("Failed to get body from email. " + JSON.stringify(asyncResult.error));
+      return;
+    }
+    const body = asyncResult.value;
+    return body;
+  });
+}
+
+
+/**
+ * Gets the 'to' from email.
+ */
+function toHandler() {
+  Office.context.mailbox.item.to.getAsync(function (asyncResult) {
+    if (asyncResult.status !== Office.AsyncResultStatus.Succeeded) {
+      console.error("Failed to get To recipients. " + JSON.stringify(asyncResult.error));
+      return;
+    }
+    const toRecipients = asyncResult.value;
+    return toRecipients;
+  });
+}
+
+/**
+ * Gets the 'sender' from email.
+ */
+function senderHandler() {
+  Office.context.mailbox.item.to.getAsync(function (asyncResult) {
+    if (asyncResult.status !== Office.AsyncResultStatus.Succeeded) {
+      console.error("Failed to get sender email. " + JSON.stringify(asyncResult.error));
+      return; //should we change what this returns? what heppens if fail
+    }
+    const sender = asyncResult.value;
+    return sender;
+  });
+}
+
+function _setSessionData(key, value) {
+  Office.context.mailbox.item.sessionData.setAsync(
+    key,
+    value.toString(),
+    function(asyncResult) {
+      // Handle success or error.
+      if (asyncResult.status === Office.AsyncResultStatus.Succeeded) {
+      console.log(`sessionData.setAsync(${key}) to ${value} succeeded`);
+      if (value) {
+        _tagExternal(value);
+      } else {
+        _checkForExternal();
+      }
+    } else {
+      console.error(`Failed to set ${key} sessionData to ${value}. Error: ${JSON.stringify(asyncResult.error)}`);
+      return;
+    }
+  });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Handles the 'to' authentication.
+ * @param {*} event The Office event object
+ */
+function FAKEtoHandler(event) {
+  
+  Office.context.mailbox.item.to.getAsync(function (asyncResult) {
+    if (asyncResult.status !== Office.AsyncResultStatus.Succeeded) {
+      console.error("Failed to get To recipients. " + JSON.stringify(asyncResult.error));
+      return;
+    }
+    
+    const toRecipients = asyncResult.value;
+    console.log("checking the classification of recipient: "+ toRecipients);
     checkRecipientClassification(toRecipients)
-      .then((allowEvent) => {
+      .then(allowEvent => {
         if (!allowEvent) {
           // Prevent sending the email
-          console.log("Prevent sending email");
           event.completed({ allowEvent: false });
           Office.context.mailbox.item.notificationMessages.addAsync(
             "unauthorizedSending",
             {
-              type: Office.MailboxEnums.ItemNotificationMessageType
-                .ErrorMessage,
-              message: "You are not authorized to send this email",
-            },
-            (result) => {
-              console.log(result);
+              type: Office.MailboxEnums.ItemNotificationMessageType.ErrorMessage,
+              message: "You are not authorized to send this email to meaganbmueller@gmail.com."
             }
           );
         } else {
@@ -62,45 +193,10 @@ function MessageSendVerificationHandler(event) {
           event.completed({ allowEvent: true });
         }
       })
-      .catch((error) => {
-        console.error(
-          "Error occurred while checking recipient classification: " + error
-        );
+      .catch(error => {
+        console.error("Error occurred while checking recipient classification: " + error);
       });
   });
-}
-
-function fetchCSVData(url) {
-  return fetch(url).then((csvData) => parseCSV(csvData));
-}
-
-/**
- * sets session data
- * key and value parameters
- */
-function _setSessionData(key, value) {
-  Office.context.mailbox.item.sessionData.setAsync(
-    key,
-    value.toString(),
-    function (asyncResult) {
-      // Handle success or error.
-      if (asyncResult.status === Office.AsyncResultStatus.Succeeded) {
-        console.log(`sessionData.setAsync(${key}) to ${value} succeeded`);
-        if (value) {
-          _tagExternal(value);
-        } else {
-          _checkForExternal();
-        }
-      } else {
-        console.error(
-          `Failed to set ${key} sessionData to ${value}. Error: ${JSON.stringify(
-            asyncResult.error
-          )}`
-        );
-        return;
-      }
-    }
-  );
 }
 
 /**
@@ -113,7 +209,7 @@ function checkRecipientClassification(recipients) {
 
   return new Promise((resolve, reject) => {
     let allowEvent = true;
-
+    
     recipients.forEach(function (recipient) {
       const emailAddress = recipient.emailAddress;
       console.log(emailAddress);
@@ -123,6 +219,7 @@ function checkRecipientClassification(recipients) {
         console.log("isUnauthorized returned: " + isUnauthorized(emailAddress));
         allowEvent = false;
       }
+
     });
 
     console.log("event should proceed since isUnauthorized returned false");
@@ -139,7 +236,7 @@ function checkRecipientClassification(recipients) {
  */
 function isUnauthorized(emailAddress) {
   // Check if the recipient's email address matches the unauthorized email address
-  return emailAddress === "meaganbmueller@gmail.com";
+  return emailAddress === 'meaganbmueller@gmail.com';
 }
 
 /**
@@ -150,8 +247,8 @@ function isUnauthorized(emailAddress) {
 function getClearanceLevel(emailAddress) {
   // Perform your logic to determine the clearance level based on the recipient's email address
   // For demonstration, let's assume 'meaganbmueller@gmail.com' requires a 'Classified' clearance
-  if (emailAddress === "meaganbmueller@gmail.com") {
-    return "Classified";
+  if (emailAddress === 'meaganbmueller@gmail.com') {
+    return 'Classified';
   }
   // If the recipient doesn't require any special clearance, return null
   return null;
@@ -177,8 +274,6 @@ function getClearanceLevel(emailAddress) {
 //   });
 // }
 
+
 // 1st parameter: FunctionName of LaunchEvent in the manifest; 2nd parameter: Its implementation in this .js file.
-Office.actions.associate(
-  "MessageSendVerificationHandler",
-  MessageSendVerificationHandler
-);
+Office.actions.associate("MessageSendVerificationHandler", MessageSendVerificationHandler);
