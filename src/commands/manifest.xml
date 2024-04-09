@@ -72,9 +72,9 @@
           <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/assets/icon-80.png"/>
         </bt:Images>
         <bt:Urls>
-          <bt:Url id="WebViewRuntime.Url" DefaultValue="https://meg217.github.io/Outlook_Addin_Authorization_Verifier/src/commands/commands.html" />
+          <bt:Url id="WebViewRuntime.Url" DefaultValue="https://jdmxspartan.github.io/Outlook_Addin_Authorization_Verifier/src/commands/commands.html" />
           <!-- Entry needed for Outlook Desktop. -->
-          <bt:Url id="JSRuntime.Url" DefaultValue="https://meg217.github.io/Outlook_Addin_Authorization_Verifier/src/commands/commands.js" />
+          <bt:Url id="JSRuntime.Url" DefaultValue="https://jdmxspartan.github.io/Outlook_Addin_Authorization_Verifier/src/commands/commands.js" />
         </bt:Urls>
         <bt:LongStrings>
           <bt:String id="residAppDesc" DefaultValue="Update the subject and add a disclaimer if external recipients are included."></bt:String>
